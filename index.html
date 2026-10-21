@@ -20,7 +20,7 @@
   <div id="menu" class="overlay">
     <div class="panel">
       <h1>BUMPER<span>ARENA</span></h1>
-      <p class="tag">Knock your friends off the platform.<br>Last one standing wins the round.</p>
+      <p class="tag">Knock your friends off the platform.<br>Last one standing wins the round.<br><small>5 arenas &middot; 4 power-ups &middot; up to 8 players</small></p>
       <label class="field">
         <span>Your name</span>
         <input id="name" maxlength="12" autocomplete="off" spellcheck="false">
@@ -33,7 +33,7 @@
       </div>
       <button id="btnSolo" class="btn ghost">Practice vs bots (offline)</button>
       <p id="menuMsg" class="msg" role="status"></p>
-      <p class="help">WASD / arrow keys to roll &middot; <kbd>Space</kbd> to dash &middot; <kbd>M</kbd> mute</p>
+      <p class="help">WASD / arrow keys to roll &middot; <kbd>Space</kbd> dash &middot; <kbd>P</kbd> autopilot &middot; <kbd>M</kbd> mute</p>
     </div>
   </div>
 
@@ -50,10 +50,16 @@
       <div class="lbl">ROOM</div>
       <div id="roomCode">-----</div>
       <button id="btnCopy" class="btn small" hidden>Copy invite link</button>
-      <div id="hostTools" class="row">
-        <button id="btnAddBot" class="btn small">+ Bot</button>
-        <button id="btnRemBot" class="btn small">&minus; Bot</button>
+      <div id="mapName" class="lbl map-name"></div>
+      <div id="hostTools">
+        <div class="row">
+          <button id="btnAddBot" class="btn small">+ Bot</button>
+          <button id="btnRemBot" class="btn small">&minus; Bot</button>
+        </div>
+        <select id="mapSel" class="sel" aria-label="Arena"></select>
+        <button id="btnPowers" class="btn small full">Power-ups: on</button>
       </div>
+      <button id="btnAuto" class="btn small full">Autopilot: off</button>
       <div class="row">
         <button id="btnMute" class="btn small">Sound on</button>
         <button id="btnLeave" class="btn small">Leave</button>
@@ -64,6 +70,7 @@
     <div id="sub"></div>
     <div id="scores" class="box tr"></div>
     <div id="feed"></div>
+    <div id="chips"></div>
     <div id="dashMeter"><div id="dashFill"></div><span>DASH</span></div>
     <div id="touch" hidden>
       <div id="stick"><div id="knob"></div></div>

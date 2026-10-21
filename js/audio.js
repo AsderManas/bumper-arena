@@ -72,5 +72,8 @@ export const sfx = {
   go() { tone(990, 0.35, 'square', 0.1); },
   win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, 'triangle', 0.12, null, i * 0.11)); },
   end() { tone(392, 0.3, 'triangle', 0.1); tone(330, 0.4, 'triangle', 0.1, null, 0.15); },
+  pickup() { [660, 880, 1175].forEach((f, i) => tone(f, 0.12, 'square', 0.07, null, i * 0.05)); },
+  shock() { noise(0.5, 0.7, 180); tone(120, 0.5, 'sine', 0.3, 35); },
+  bump() { tone(320, 0.18, 'sine', 0.15, 720); },
   join() { tone(880, 0.1, 'sine', 0.08); tone(1320, 0.12, 'sine', 0.08, null, 0.08); },
 };

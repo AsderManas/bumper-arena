@@ -146,6 +146,40 @@ kbd { background: rgba(255, 255, 255, 0.12); border-radius: 4px; padding: 1px 6p
 .row { display: flex; gap: 6px; margin-top: 6px; }
 .row .btn { flex: 1; }
 #netStatus { margin-top: 8px; font-size: 11px; color: var(--muted); line-height: 1.35; }
+.map-name { margin-bottom: 4px; color: var(--cyan); }
+.btn.full { margin-top: 6px; }
+.sel {
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 8px;
+  font: 600 12px 'Inter', sans-serif;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  pointer-events: auto;
+}
+.sel option { background: #1a1236; }
+.tag small { color: var(--cyan); font-weight: 600; }
+
+#chips {
+  position: absolute;
+  bottom: 38px; left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+}
+.chip {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid;
+  border-radius: 999px;
+  animation: pulse 1s ease-in-out infinite alternate;
+}
+@keyframes pulse { from { opacity: 0.75; } to { opacity: 1; } }
 
 #banner {
   position: absolute;
@@ -234,4 +268,5 @@ kbd { background: rgba(255, 255, 255, 0.12); border-radius: 4px; padding: 1px 6p
   .score-row { font-size: 12px; }
   #feed { bottom: 190px; font-size: 12px; }
   #dashMeter { bottom: 8px; }
+  #chips { bottom: 30px; }
 }

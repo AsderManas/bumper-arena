@@ -3,7 +3,7 @@
 // One player hosts: their browser runs the Sim and streams snapshots to everyone.
 // Everyone else is a client: they send their stick input and draw what the host says.
 
-import { Sim, CFG, PHASE, COLORS } from './sim.js';
+import { Sim, CFG, PHASE, COLORS, MAPS, POWERS, F } from './sim.js';
 import { hostRoom, joinRoom, describeError } from './net.js';
 import { View } from './view.js';
 import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js';
@@ -26,6 +26,10 @@ const S = {
   radius: CFG.arenaStart,
   winner: 0,
   dashReadyAt: 0,
+  map: 0,
+  arm: 0, armSpeed: 0, armT: 0, armRender: 0,
+  powerups: [],         // [id, type, x, z]
+  auto: false,          // autopilot for my own ball
 };
 
 let sim = null;            // host/solo only
@@ -107,6 +111,24 @@ $('btnMute').onclick = () => updateMuteLabel(toggleMute());
 function updateMuteLabel(m) { $('btnMute').textContent = m ? 'Sound off' : 'Sound on'; }
 updateMuteLabel(isMuted());
 
+function toggleAuto() {
+  S.auto = !S.auto;
+  $('btnAuto').textContent = S.auto ? 'Autopilot: ON' : 'Autopilot: off';
+  $('btnAuto').classList.toggle('primary', S.auto);
+  if (sim) { const me = sim.players.get(S.myId); if (me) sim.setAuto(me, S.auto); }
+}
+$('btnAuto').onclick = toggleAuto;
+
+const mapSel = $('mapSel');
+mapSel.append(new Option('Map: rotate each round', '-1'));
+MAPS.forEach((m, i) => mapSel.append(new Option('Map: ' + m.name, String(i))));
+mapSel.onchange = () => { if (sim) sim.setMapMode(+mapSel.value); mapSel.blur(); };
+$('btnPowers').onclick = () => {
+  if (!sim) return;
+  sim.setPowerups(!sim.powerupsOn);
+  $('btnPowers').textContent = sim.powerupsOn ? 'Power-ups: on' : 'Power-ups: off';
+};
+
 $('btnCopy').onclick = async () => {
   const url = location.origin + location.pathname + '?room=' + S.code;
   try {
@@ -174,6 +196,8 @@ function hostReceive(conn, d) {
   } else if (d.t === 'i') {
     const p = sim.players.get(conns.get(conn));
     if (!p) return;
+    sim.setAuto(p, !!d.a);
+    if (p.auto) return;
     p.input.x = clamp1(+d.x || 0);
     p.input.z = clamp1(+d.z || 0);
     if (d.d) p.input.dash = true;
@@ -232,7 +256,7 @@ addEventListener('pagehide', () => {
 let scoresDirty = true;
 
 function applyRoster(d) {
-  S.roster = new Map(d.l.map(([id, name, color, score, bot]) => [id, { name, color, score, bot: !!bot }]));
+  S.roster = new Map(d.l.map(([id, name, color, score, bot, auto]) => [id, { name, color, score, bot: !!bot, auto: !!auto }]));
   scoresDirty = true;
 }
 
@@ -251,11 +275,17 @@ function applySnapshot(s) {
   S.phase = s.ph;
   S.timer = s.tm;
   S.winner = s.w;
+  S.map = s.m;
+  S.arm = s.a;
+  S.armSpeed = s.as;
+  S.armT = t;
+  S.powerups = s.u;
 }
 
 function smoothPlayers(dt) {
   const t = now();
   const k = 1 - Math.exp(-dt * 20);
+  S.armRender = S.arm + S.armSpeed * Math.min(0.1, t - S.armT);
   for (const p of S.players.values()) {
     if (S.mode !== 'client') { p.rx = p.x; p.ry = p.y; p.rz = p.z; continue; }
     // Extrapolate a little past the last snapshot, then ease toward it.
@@ -316,6 +346,21 @@ function handleEvents(evs) {
       case 'w':
         if (e[1] === S.myId) sfx.win(); else sfx.end();
         break;
+      case 'p': {
+        const pw = POWERS[e[2]];
+        view.pickupFx(e[1], e[2]);
+        feed(who(e[1]), ' grabbed ', { t: pw.name, c: pw.color });
+        if (e[1] === S.myId) sfx.pickup();
+        break;
+      }
+      case 'x': {
+        view.shockwave(e[1], e[2]);
+        sfx.shock();
+        const me = S.players.get(S.myId);
+        if (me && Math.hypot(me.rx - e[1], me.rz - e[2]) < CFG.shockRadius) view.shake = 0.9;
+        break;
+      }
+      case 'b': view.bumperHit(e[1]); sfx.bump(); break;
       case 'g': flash('GO!'); sfx.go(); break;
       case 'j': feed({ t: e[1] }, ' joined'); sfx.join(); break;
       case 'l': feed({ t: e[1] }, ' left'); break;
@@ -350,7 +395,7 @@ function updateHud(dt) {
     case PHASE.COUNTDOWN: {
       const n = Math.max(1, Math.ceil(S.timer));
       banner = String(n);
-      sub = 'Get ready!';
+      sub = `${MAPS[S.map].name}: ${MAPS[S.map].desc}`;
       if (n !== lastCount) { lastCount = n; sfx.beep(); }
       break;
     }
@@ -370,6 +415,28 @@ function updateHud(dt) {
   if (t < flashUntil) banner = flashText;
   setText('banner', banner);
   setText('sub', sub);
+  setText('mapName', 'Arena: ' + MAPS[S.map].name);
+
+  // Active power-up / autopilot chips above the dash meter.
+  const chips = [];
+  if (S.auto) chips.push(['AUTOPILOT', '#4dd8ff']);
+  if (meAlive) {
+    if (me.f & F.SPEED) chips.push(['SPEED', POWERS[0].color]);
+    if (me.f & F.MEGA) chips.push(['MEGA', POWERS[1].color]);
+    if (me.f & F.HEAVY) chips.push(['HEAVY', POWERS[2].color]);
+  }
+  const key = chips.map((c) => c[0]).join();
+  if ($('chips').dataset.key !== key) {
+    $('chips').dataset.key = key;
+    $('chips').replaceChildren(...chips.map(([label, color]) => {
+      const el = document.createElement('span');
+      el.className = 'chip';
+      el.textContent = label;
+      el.style.borderColor = color;
+      el.style.color = color;
+      return el;
+    }));
+  }
 
   scoresT -= dt;
   if (scoresDirty || scoresT <= 0) {
@@ -396,7 +463,7 @@ function renderScores() {
     dot.style.background = info.color;
     const nm = document.createElement('span');
     nm.className = 'nm';
-    nm.textContent = info.name + (id === S.myId ? ' (you)' : '');
+    nm.textContent = info.name + (id === S.myId ? ' (you)' : '') + (info.auto ? ' [auto]' : '');
     const pts = document.createElement('span');
     pts.className = 'pts';
     pts.textContent = info.score;
@@ -420,6 +487,7 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   if (e.code === 'KeyM' && S.mode) updateMuteLabel(toggleMute());
+  if (e.code === 'KeyP' && S.mode) toggleAuto();
   if (e.code.startsWith('Arrow')) e.preventDefault();
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
@@ -474,7 +542,7 @@ function tick() {
 
   if (sim) {
     const me = sim.players.get(S.myId);
-    if (me) {
+    if (me && !me.auto) {
       me.input.x = inp.x;
       me.input.z = inp.z;
       if (dashPressed) me.input.dash = true;
@@ -507,7 +575,7 @@ function tick() {
     inputAcc += dt;
     if (inputAcc >= 1 / 30 || dashPressed) {
       inputAcc = 0;
-      link.send({ t: 'i', x: +inp.x.toFixed(2), z: +inp.z.toFixed(2), d: dashPressed ? 1 : 0 });
+      link.send({ t: 'i', x: +inp.x.toFixed(2), z: +inp.z.toFixed(2), d: dashPressed ? 1 : 0, a: S.auto ? 1 : 0 });
       dashPressed = false;
     }
   } else {

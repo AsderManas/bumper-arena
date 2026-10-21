@@ -3,6 +3,7 @@
 A 3D multiplayer browser game. Roll your glowing bumper ball around a floating arena and knock everyone else off the edge. The arena shrinks as the round goes on. The last one standing wins the round.
 
 - Up to 8 players, plus bots to fill empty slots
+- 5 arenas, 4 power-ups, and an autopilot that plays for you
 - Works on desktop (keyboard) and phones (touch joystick)
 - Runs on GitHub Pages without a game server or build step
 
@@ -12,7 +13,33 @@ A 3D multiplayer browser game. Roll your glowing bumper ball around a floating a
 |---|---|---|
 | Roll | WASD / arrow keys | Left joystick |
 | Dash (hits much harder) | Space / Shift | DASH button |
+| Autopilot (the bot AI plays as you) | P | Autopilot button |
 | Mute | M | Sound button |
+
+## Arenas
+
+By default the arena changes every round. The host can lock one in from the map menu.
+
+| Arena | What's different |
+|---|---|
+| **Classic** | The original neon platform |
+| **Ice Rink** | Almost no friction. Hard to get going and harder to stop |
+| **Donut** | A frosted ring with a hole in the middle you can fall through |
+| **Pinball** | Five bumpers that launch you when you touch them |
+| **Sweeper** | A spinning bar that sweeps the floor and speeds up during the round |
+
+## Power-ups
+
+One appears every 5 to 8 seconds, with up to 3 on the floor. Roll over one to grab it. The host can turn them off.
+
+| Power-up | Effect |
+|---|---|
+| ⚡ **Speed** (yellow) | 70% faster rolling for 6 s |
+| 🔴 **Mega** (red) | 55% bigger and 2.5× heavier for 7 s |
+| 🛡 **Heavy** (blue) | 4× mass for 7 s. You barely move when hit |
+| 💥 **Shockwave** (purple) | Instantly blasts everyone nearby away from you |
+
+The player with the most round wins wears a crown.
 
 ## Publish it on GitHub Pages
 
@@ -34,6 +61,7 @@ A 3D multiplayer browser game. Roll your glowing bumper ball around a floating a
 1. One person opens the game and clicks **Host a game**. They get a 5-letter room code.
 2. They click **Copy invite link** and send it to friends. Friends can also type the code and click **Join**.
 3. A round starts automatically once 2 or more players are in. Use **+ Bot** to fill out the arena.
+4. The host's panel also has the arena picker and the power-ups switch.
 
 ## How multiplayer works without a server
 
@@ -66,7 +94,7 @@ Then open http://localhost:8000. To test multiplayer by yourself, host in one ta
 |---|---|
 | `index.html` | Page, menu and HUD markup. Loads Three.js and PeerJS from CDNs |
 | `style.css` | Menu and HUD styling |
-| `js/sim.js` | Game rules and physics (runs on the host only). Tuning values are in `CFG` at the top |
+| `js/sim.js` | Game rules, physics, arenas, power-ups and bot AI (runs on the host only). Tuning values are in `CFG`, `MAPS` and `POWERS` at the top |
 | `js/net.js` | PeerJS room hosting and joining |
 | `js/view.js` | Three.js scene: arena, players, particles, camera |
 | `js/audio.js` | Synthesized sound effects |
