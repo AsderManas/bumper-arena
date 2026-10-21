@@ -3,7 +3,7 @@
 A 3D multiplayer browser game. Roll your glowing bumper ball around a floating arena and knock everyone else off the edge. The arena shrinks as the round goes on. The last one standing wins the round.
 
 - Up to 8 players, plus bots to fill empty slots
-- 5 arenas, 4 power-ups, and an autopilot that plays for you
+- 5 arenas, 8 power-ups, and an autopilot that plays for you
 - Works on desktop (keyboard) and phones (touch joystick)
 - Runs on GitHub Pages without a game server or build step
 
@@ -26,18 +26,22 @@ By default the arena changes every round. The host can lock one in from the map 
 | **Ice Rink** | Almost no friction. Hard to get going and harder to stop |
 | **Donut** | A frosted ring with a hole in the middle you can fall through |
 | **Pinball** | Five bumpers that launch you when you touch them |
-| **Sweeper** | A spinning bar that sweeps the floor and speeds up during the round |
+| **Sweeper** | A spinning arm sweeps the floor. Dodge it, or **dash straight through it** |
 
 ## Power-ups
 
-One appears every 5 to 8 seconds, with up to 3 on the floor. Roll over one to grab it. The host can turn them off.
+One appears every 4 to 7 seconds, with up to 4 on the floor. Roll over one to grab it. The host can turn them off.
 
 | Power-up | Effect |
 |---|---|
 | ⚡ **Speed** (yellow) | 70% faster rolling for 6 s |
 | 🔴 **Mega** (red) | 55% bigger and 2.5× heavier for 7 s |
-| 🛡 **Heavy** (blue) | 4× mass for 7 s. You barely move when hit |
+| 🛡 **Heavy** (blue) | 2× mass for 5 s. Harder to push, but a bit slower |
 | 💥 **Shockwave** (purple) | Instantly blasts everyone nearby away from you |
+| 👻 **Ghost** (white) | Pass through other players, the sweeper arm and blasts for 5 s |
+| 🚀 **Hover** (green) | Float for 5 s. You can't fall, even off the edge, but get back before it runs out |
+| 🔥 **Turbo Dash** (orange) | Dash cooldown drops from 1.5 s to 0.35 s for 6 s |
+| ❄ **Freeze** (cyan) | Freezes everyone nearby for 2.5 s: no steering, no dashing |
 
 The player with the most round wins wears a crown.
 

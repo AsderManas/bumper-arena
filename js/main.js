@@ -335,7 +335,12 @@ function handleEvents(evs) {
         break;
       }
       case 'd':
-        if (e[1] === S.myId) { S.dashReadyAt = now() + CFG.dashCd; sfx.dash(); }
+        if (e[1] === S.myId) {
+          const turbo = (S.players.get(S.myId)?.f ?? 0) & F.TURBO;
+          S.dashCdLen = turbo ? CFG.turboCd : CFG.dashCd;
+          S.dashReadyAt = now() + S.dashCdLen;
+          sfx.dash();
+        }
         view.dashFx(e[1]);
         break;
       case 'k':
@@ -360,6 +365,11 @@ function handleEvents(evs) {
         if (me && Math.hypot(me.rx - e[1], me.rz - e[2]) < CFG.shockRadius) view.shake = 0.9;
         break;
       }
+      case 'z': {
+        view.shockwave(e[1], e[2], '#00e5ff', CFG.freezeRadius);
+        sfx.freeze();
+        break;
+      }
       case 'b': view.bumperHit(e[1]); sfx.bump(); break;
       case 'g': flash('GO!'); sfx.go(); break;
       case 'j': feed({ t: e[1] }, ' joined'); sfx.join(); break;
@@ -379,7 +389,7 @@ function updateHud(dt) {
   if (!S.mode) return;
   const t = now();
   const cd = Math.max(0, S.dashReadyAt - t);
-  $('dashFill').style.width = (100 * (1 - cd / CFG.dashCd)).toFixed(1) + '%';
+  $('dashFill').style.width = (100 * (1 - cd / (S.dashCdLen || CFG.dashCd))).toFixed(1) + '%';
 
   const me = S.players.get(S.myId);
   const meAlive = !!me && (me.f & 1);
@@ -421,9 +431,12 @@ function updateHud(dt) {
   const chips = [];
   if (S.auto) chips.push(['AUTOPILOT', '#4dd8ff']);
   if (meAlive) {
-    if (me.f & F.SPEED) chips.push(['SPEED', POWERS[0].color]);
-    if (me.f & F.MEGA) chips.push(['MEGA', POWERS[1].color]);
-    if (me.f & F.HEAVY) chips.push(['HEAVY', POWERS[2].color]);
+    const active = [[F.SPEED, 'speed'], [F.MEGA, 'mega'], [F.HEAVY, 'heavy'], [F.GHOST, 'ghost'], [F.HOVER, 'hover'], [F.TURBO, 'turbo']];
+    for (const [bit, id] of active) {
+      const pw = POWERS.find((q) => q.id === id);
+      if (me.f & bit) chips.push([pw.name.toUpperCase(), pw.color]);
+    }
+    if (me.f & F.FROZEN) chips.push(['FROZEN!', '#00e5ff']);
   }
   const key = chips.map((c) => c[0]).join();
   if ($('chips').dataset.key !== key) {

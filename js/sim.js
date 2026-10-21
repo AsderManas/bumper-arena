@@ -16,10 +16,13 @@ export const CFG = {
   knockback: 1.15,   // arcade extra push on every collision
   gravity: 35,
   maxPlayers: 8,
-  maxPowerups: 3,
+  maxPowerups: 4,
   pickupR: 0.9,
   shockRadius: 9,
   shockPush: 24,
+  freezeRadius: 10,
+  freezeTime: 2.5,
+  turboCd: 0.35,
   megaScale: 1.55,
   bumperR: 1.5,
   bumperKick: 17,
@@ -34,18 +37,25 @@ export const MAPS = [
   { id: 'ice', name: 'Ice Rink', desc: 'Slippery! Hard to stop.', accel: 0.55, drag: 0.9 },
   { id: 'donut', name: 'Donut', desc: "Don't fall through the hole.", hole: 0.32 },
   { id: 'pinball', name: 'Pinball', desc: 'Bumpers launch you flying.', bumpers: true },
-  { id: 'sweeper', name: 'Sweeper', desc: 'Dodge the spinning arm!', sweeper: true },
+  { id: 'sweeper', name: 'Sweeper', desc: 'Dodge the spinning arm, or dash right through it!', sweeper: true },
 ];
 
 export const POWERS = [
   { id: 'speed', name: 'Speed', color: '#ffd23f', dur: 6 },
   { id: 'mega', name: 'Mega', color: '#ff4d6d', dur: 7 },
-  { id: 'heavy', name: 'Heavy', color: '#4dabff', dur: 7 },
+  { id: 'heavy', name: 'Heavy', color: '#4dabff', dur: 5 },
   { id: 'shock', name: 'Shockwave', color: '#b388ff', dur: 0 },
+  { id: 'ghost', name: 'Ghost', color: '#e8e4ff', dur: 5 },
+  { id: 'hover', name: 'Hover', color: '#3ddc97', dur: 5 },
+  { id: 'turbo', name: 'Turbo Dash', color: '#ff8c42', dur: 6 },
+  { id: 'freeze', name: 'Freeze', color: '#00e5ff', dur: 0 },
 ];
 
 // Snapshot flag bits for a player.
-export const F = { ALIVE: 1, DASH: 2, FALL: 4, SPEED: 8, MEGA: 16, HEAVY: 32 };
+export const F = {
+  ALIVE: 1, DASH: 2, FALL: 4, SPEED: 8, MEGA: 16, HEAVY: 32,
+  GHOST: 64, HOVER: 128, TURBO: 256, FROZEN: 512,
+};
 
 export const COLORS = ['#ff4d6d', '#4dabff', '#ffd23f', '#3ddc97', '#b388ff', '#ff8c42', '#00e5ff', '#ff6ec7'];
 const BOT_NAMES = ['Bolt', 'Nova', 'Pixel', 'Turbo', 'Zippy', 'Rumble', 'Comet', 'Blip'];
@@ -63,7 +73,7 @@ export function bumperSpots(map, radius) {
 }
 
 const radiusOf = (p) => CFG.r * (p.megaT > 0 ? CFG.megaScale : 1);
-const massOf = (p) => (p.dashT > 0 ? CFG.dashMass : 1) * (p.megaT > 0 ? 2.5 : 1) * (p.heavyT > 0 ? 4 : 1);
+const massOf = (p) => (p.dashT > 0 ? CFG.dashMass : 1) * (p.megaT > 0 ? 2.5 : 1) * (p.heavyT > 0 ? 2 : 1);
 
 export class Sim {
   constructor() {
@@ -109,7 +119,7 @@ export class Sim {
       id, name, color, bot, auto: false, score: 0,
       x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, faceX: 0, faceZ: 1,
       alive: true, falling: false, dashCd: 0, dashT: 0, respawnT: 0,
-      speedT: 0, megaT: 0, heavyT: 0, sweepT: 0,
+      speedT: 0, megaT: 0, heavyT: 0, ghostT: 0, hoverT: 0, turboT: 0, frozenT: 0, sweepT: 0,
       lastHit: 0, lastHitT: -99,
       input: { x: 0, z: 0, dash: false },
     };
@@ -150,7 +160,7 @@ export class Sim {
     p.y = 0; p.vx = p.vy = p.vz = 0;
     p.alive = true; p.falling = false;
     p.dashCd = 0; p.dashT = 0; p.lastHit = 0; p.lastHitT = -99;
-    p.speedT = p.megaT = p.heavyT = 0;
+    p.speedT = p.megaT = p.heavyT = p.ghostT = p.hoverT = p.turboT = p.frozenT = 0;
   }
 
   // Ring of safe floor to drop players onto: [min, max] distance from center.
@@ -321,19 +331,20 @@ export class Sim {
     return vn < -2;
   }
 
-  // The sweeper is a full-width bar spinning around the center.
+  // The sweeper is a single arm from the hub to the rim. Dashing (or Ghost) phases through it.
   sweep(p) {
+    if (p.dashT > 0 || p.ghostT > 0) return;
     const a = this.armAngle;
     const dx = Math.cos(a), dz = Math.sin(a), nx = -dz, nz = dx;
     const along = p.x * dx + p.z * dz, perp = p.x * nx + p.z * nz;
     const half = CFG.armWidth / 2 + radiusOf(p);
-    if (Math.abs(along) > this.radius || Math.abs(perp) >= half) return;
+    if (along < 0 || along > this.radius || Math.abs(perp) >= half) return;
     const s = perp >= 0 ? 1 : -1;
     const fix = s * half - perp;
     p.x += nx * fix; p.z += nz * fix;
     const barV = this.armSpeed * along;   // bar surface speed at this point, along n
     const hitting = s * barV > 0;         // bar is moving toward this side
-    const want = barV + s * (hitting ? 11 : 1);
+    const want = barV + s * (hitting ? 7 : 1);
     const vn = p.vx * nx + p.vz * nz;
     if (s * (vn - want) < 0) {
       p.vx += (want - vn) * nx; p.vz += (want - vn) * nz;
@@ -349,14 +360,16 @@ export class Sim {
     for (let i = this.powerups.length - 1; i >= 0; i--) {
       const u = this.powerups[i];
       const d = Math.hypot(u.x, u.z);
-      if (d > this.radius - 1 || (hole && d < hole + 1)) this.powerups.splice(i, 1);
+      if (d > this.radius - 1.5 || (hole && d < hole + 1.5)) this.powerups.splice(i, 1);
     }
     if (!this.powerupsOn || this.phase === PHASE.COUNTDOWN) return;
 
     this.powerT -= dt;
     if (this.powerT <= 0 && this.powerups.length < CFG.maxPowerups) {
-      this.powerT = 5 + Math.random() * 3;
-      const lo = hole ? hole + 2 : 0, hi = this.radius * 0.75;
+      this.powerT = 4 + Math.random() * 3;
+      // Keep spawns well inside reachable floor: off the hub, away from the hole and the rim.
+      const lo = hole ? hole + 2.5 : this.map.sweeper ? CFG.hubR + 3 : 2;
+      const hi = Math.max(lo + 1, this.radius * 0.65);
       const bumpers = bumperSpots(this.map, this.radius);
       for (let tries = 0; tries < 12; tries++) {
         const a = Math.random() * Math.PI * 2, d = lo + Math.random() * (hi - lo);
@@ -383,16 +396,27 @@ export class Sim {
     if (pw.id === 'speed') p.speedT = pw.dur;
     else if (pw.id === 'mega') p.megaT = pw.dur;
     else if (pw.id === 'heavy') p.heavyT = pw.dur;
+    else if (pw.id === 'ghost') p.ghostT = pw.dur;
+    else if (pw.id === 'hover') p.hoverT = pw.dur;
+    else if (pw.id === 'turbo') { p.turboT = pw.dur; p.dashCd = 0; }
     else if (pw.id === 'shock') {
       for (const o of list) {
-        if (o === p || !o.alive) continue;
+        if (o === p || !o.alive || o.ghostT > 0) continue;
         const dx = o.x - p.x, dz = o.z - p.z, d = Math.hypot(dx, dz) || 0.01;
         if (d > CFG.shockRadius) continue;
-        const push = (CFG.shockPush * (1 - d / CFG.shockRadius) + 8) / (o.heavyT > 0 ? 2 : 1);
+        const push = (CFG.shockPush * (1 - d / CFG.shockRadius) + 8) / (o.heavyT > 0 ? 1.5 : 1);
         o.vx += (dx / d) * push; o.vz += (dz / d) * push;
         o.lastHit = p.id; o.lastHitT = this.elapsed;
       }
       this.events.push(['x', r2(p.x), r2(p.z)]);
+    } else if (pw.id === 'freeze') {
+      for (const o of list) {
+        if (o === p || !o.alive || o.ghostT > 0) continue;
+        if (Math.hypot(o.x - p.x, o.z - p.z) > CFG.freezeRadius) continue;
+        o.frozenT = CFG.freezeTime;
+        o.lastHit = p.id; o.lastHitT = this.elapsed;
+      }
+      this.events.push(['z', r2(p.x), r2(p.z)]);
     }
     this.events.push(['p', p.id, type]);
   }
@@ -408,7 +432,7 @@ export class Sim {
     const hole = map.hole ? map.hole * this.radius : 0;
 
     if (map.sweeper) {
-      this.armSpeed = frozen ? 0 : this.phase === PHASE.PLAYING ? 0.7 + Math.min(1.0, this.roundTime * 0.02) : 0.4;
+      this.armSpeed = frozen ? 0 : this.phase === PHASE.PLAYING ? 0.5 + Math.min(0.3, this.roundTime * 0.006) : 0.35;
       this.armAngle = (this.armAngle + this.armSpeed * dt) % (Math.PI * 2);
     } else {
       this.armSpeed = 0;
@@ -427,24 +451,29 @@ export class Sim {
       p.speedT = Math.max(0, p.speedT - dt);
       p.megaT = Math.max(0, p.megaT - dt);
       p.heavyT = Math.max(0, p.heavyT - dt);
+      p.ghostT = Math.max(0, p.ghostT - dt);
+      p.hoverT = Math.max(0, p.hoverT - dt);
+      p.turboT = Math.max(0, p.turboT - dt);
+      p.frozenT = Math.max(0, p.frozenT - dt);
       p.sweepT = Math.max(0, p.sweepT - dt);
       if (frozen) { p.vx = p.vz = 0; continue; }
 
       let ix = p.input.x, iz = p.input.z;
       const il = Math.hypot(ix, iz);
       if (il > 1) { ix /= il; iz /= il; }
+      if (p.frozenT > 0) ix = iz = 0;
 
       if (!p.falling) {
-        const accel = CFG.accel * (map.accel ?? 1) * (p.speedT > 0 ? 1.7 : 1) * (p.heavyT > 0 ? 0.85 : 1);
+        const accel = CFG.accel * (map.accel ?? 1) * (p.speedT > 0 ? 1.7 : 1) * (p.heavyT > 0 ? 0.8 : 1);
         p.vx += ix * accel * dt;
         p.vz += iz * accel * dt;
-        if (wantDash && p.dashCd <= 0) {
+        if (wantDash && p.dashCd <= 0 && p.frozenT <= 0) {
           let dx = ix, dz = iz;
           if (Math.hypot(dx, dz) < 0.1) { dx = p.faceX; dz = p.faceZ; }
           const dl = Math.hypot(dx, dz) || 1;
           p.vx += (dx / dl) * CFG.dashSpeed;
           p.vz += (dz / dl) * CFG.dashSpeed;
-          p.dashCd = CFG.dashCd;
+          p.dashCd = p.turboT > 0 ? CFG.turboCd : CFG.dashCd;
           p.dashT = CFG.dashTime;
           this.events.push(['d', p.id]);
         }
@@ -465,7 +494,7 @@ export class Sim {
           this.sweep(p);
         }
         const d = Math.hypot(p.x, p.z);
-        if (d > this.radius + 0.2 || (hole && d < hole - 0.2)) p.falling = true;
+        if (p.hoverT <= 0 && (d > this.radius + 0.2 || (hole && d < hole - 0.2))) p.falling = true;
       }
       if (p.falling) { p.vy -= CFG.gravity * dt; p.y += p.vy * dt; }
       if (p.y < -30) this.eliminate(p);
@@ -477,7 +506,7 @@ export class Sim {
       if (!a.alive) continue;
       for (let j = i + 1; j < list.length; j++) {
         const b = list[j];
-        if (!b.alive || Math.abs(a.y - b.y) > CFG.r * 2) continue;
+        if (!b.alive || Math.abs(a.y - b.y) > CFG.r * 2 || a.ghostT > 0 || b.ghostT > 0) continue;
         let dx = b.x - a.x, dz = b.z - a.z;
         let d = Math.hypot(dx, dz);
         const min = radiusOf(a) + radiusOf(b);
@@ -507,7 +536,9 @@ export class Sim {
     const p = [];
     for (const q of this.players.values()) {
       const flags = (q.alive ? F.ALIVE : 0) | (q.dashT > 0 ? F.DASH : 0) | (q.falling ? F.FALL : 0)
-        | (q.speedT > 0 ? F.SPEED : 0) | (q.megaT > 0 ? F.MEGA : 0) | (q.heavyT > 0 ? F.HEAVY : 0);
+        | (q.speedT > 0 ? F.SPEED : 0) | (q.megaT > 0 ? F.MEGA : 0) | (q.heavyT > 0 ? F.HEAVY : 0)
+        | (q.ghostT > 0 ? F.GHOST : 0) | (q.hoverT > 0 ? F.HOVER : 0) | (q.turboT > 0 ? F.TURBO : 0)
+        | (q.frozenT > 0 ? F.FROZEN : 0);
       p.push([q.id, r2(q.x), r2(q.y), r2(q.z), r2(q.vx), r2(q.vz), flags]);
     }
     return {

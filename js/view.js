@@ -199,7 +199,16 @@ const POWER_GEOS = [
   () => new THREE.IcosahedronGeometry(0.62, 0),     // mega
   () => new THREE.BoxGeometry(0.85, 0.85, 0.85),    // heavy
   () => new THREE.TorusKnotGeometry(0.38, 0.13, 64, 8), // shockwave
+  () => new THREE.DodecahedronGeometry(0.55),       // ghost
+  () => new THREE.ConeGeometry(0.5, 0.9, 6),        // hover
+  () => new THREE.TetrahedronGeometry(0.7),         // turbo dash
+  () => new THREE.OctahedronGeometry(0.6, 1),       // freeze
 ];
+
+const SPEED_COLOR = new THREE.Color('#ffd23f');
+const HOVER_COLOR = new THREE.Color('#3ddc97');
+const TURBO_COLOR = new THREE.Color('#ff8c42');
+const ICE_COLOR = new THREE.Color('#bdf4ff');
 
 export class View {
   constructor(canvas) {
@@ -353,7 +362,9 @@ export class View {
     if (map.sweeper) {
       this.arm = new THREE.Group();
       const barMat = new THREE.MeshStandardMaterial({ color: '#ffb84d', emissive: '#ff7a00', emissiveIntensity: 0.5, metalness: 0.4, roughness: 0.4 });
-      this.bar = new THREE.Mesh(new THREE.BoxGeometry(2, 0.7, CFG.armWidth), barMat);
+      const barGeo = new THREE.BoxGeometry(1, 0.7, CFG.armWidth);
+      barGeo.translate(0.5, 0, 0); // runs from the hub out to the rim
+      this.bar = new THREE.Mesh(barGeo, barMat);
       this.bar.position.y = 0.55;
       this.bar.castShadow = true;
       const hub = new THREE.Mesh(new THREE.CylinderGeometry(CFG.hubR, CFG.hubR * 1.15, 1.6, 32),
@@ -407,7 +418,7 @@ export class View {
     const group = new THREE.Group();
     const pivot = new THREE.Group();
     group.add(pivot);
-    const mat = new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.18, roughness: 0.3, metalness: 0.25 });
+    const mat = new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.18, roughness: 0.3, metalness: 0.25, transparent: true });
     const body = new THREE.Mesh(new THREE.SphereGeometry(CFG.r, 32, 24), mat);
     body.castShadow = true;
     pivot.add(body);
@@ -435,7 +446,7 @@ export class View {
     group.add(shell);
     const label = labelSprite(name, color);
     group.add(label);
-    return { group, pivot, mat, label, shell, color, name, yaw: 0, stretch: 1, size: 1, threeColor: c };
+    return { group, pivot, mat, label, shell, color, name, yaw: 0, stretch: 1, size: 1, hover: 0, threeColor: c };
   }
 
   makePowerup(type) {
@@ -488,16 +499,16 @@ export class View {
     this.burst(p.x, p.z, 14, [POWERS[type].color, '#ffffff'], p.y);
   }
 
-  shockwave(x, z) {
+  shockwave(x, z, color = '#b388ff', reach = CFG.shockRadius) {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(0.8, 1, 64),
-      new THREE.MeshBasicMaterial({ color: '#d4b8ff', transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
     );
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(x, 0.3, z);
     this.scene.add(ring);
-    this.waves.push({ ring, t: 0 });
-    this.burst(x, z, 25, ['#b388ff', '#ffffff']);
+    this.waves.push({ ring, t: 0, reach });
+    this.burst(x, z, 25, [color, '#ffffff']);
   }
 
   bumperHit(i) {
@@ -582,8 +593,10 @@ export class View {
       if (!alive) continue;
       const k = 1 - Math.exp(-dt * 15);
       m.size += ((p.f & F.MEGA ? CFG.megaScale : 1) - m.size) * (1 - Math.exp(-dt * 8));
-      m.group.position.set(p.rx, p.ry + CFG.r * m.size, p.rz);
-      m.pivot.scale.setScalar(1);
+      m.hover += ((p.f & F.HOVER ? 0.7 + Math.sin(this.time * 6) * 0.12 : 0) - m.hover) * (1 - Math.exp(-dt * 10));
+      m.group.position.set(p.rx, p.ry + CFG.r * m.size + m.hover, p.rz);
+      m.mat.opacity += ((p.f & F.GHOST ? 0.3 : 1) - m.mat.opacity) * (1 - Math.exp(-dt * 10));
+      m.mat.color.copy(m.threeColor).lerp(ICE_COLOR, p.f & F.FROZEN ? 0.75 : 0);
       if (Math.hypot(p.vx, p.vz) > 0.6) m.yaw = lerpAngle(m.yaw, Math.atan2(p.vx, p.vz), 1 - Math.exp(-dt * 12));
       m.pivot.rotation.y = m.yaw;
       const dashing = p.f & F.DASH;
@@ -607,6 +620,15 @@ export class View {
       if (p.f & F.SPEED && Math.random() < 0.8) {
         this.particles.spawn(g.x, 0.3, g.z, (Math.random() - 0.5) * 1.5, Math.random() * 1.5, (Math.random() - 0.5) * 1.5, SPEED_COLOR, 0.45);
       }
+      if (p.f & F.HOVER) {
+        this.particles.spawn(g.x + (Math.random() - 0.5) * 0.8, g.y - CFG.r * m.size, g.z + (Math.random() - 0.5) * 0.8, 0, -3, 0, HOVER_COLOR, 0.35);
+      }
+      if (p.f & F.TURBO && Math.random() < 0.5) {
+        this.particles.spawn(g.x, g.y + 0.6, g.z, (Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2, TURBO_COLOR, 0.4);
+      }
+      if (p.f & F.FROZEN && Math.random() < 0.4) {
+        this.particles.spawn(g.x + (Math.random() - 0.5) * 2, g.y + 0.8, g.z + (Math.random() - 0.5) * 2, 0, -0.5, 0, ICE_COLOR, 0.6);
+      }
     }
     for (const [id, m] of this.meshes) {
       if (!S.players.has(id)) { this.disposePlayer(m); this.meshes.delete(id); }
@@ -617,7 +639,7 @@ export class View {
       const w = this.waves[i];
       w.t += dt;
       const f = w.t / 0.45;
-      w.ring.scale.setScalar(1 + f * CFG.shockRadius);
+      w.ring.scale.setScalar(1 + f * w.reach);
       w.ring.material.opacity = Math.max(0, 0.9 * (1 - f));
       if (f >= 1) { this.scene.remove(w.ring); disposeTree(w.ring); this.waves.splice(i, 1); }
     }
@@ -672,5 +694,3 @@ export class View {
     this.camera.position.y -= shy;
   }
 }
-
-const SPEED_COLOR = new THREE.Color('#ffd23f');
