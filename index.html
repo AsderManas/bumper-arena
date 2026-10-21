@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Bumper Arena</title>
+  <meta name="description" content="A 3D multiplayer browser game: knock your friends off a shrinking floating arena.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Russo+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div id="menu" class="overlay">
+    <div class="panel">
+      <h1>BUMPER<span>ARENA</span></h1>
+      <p class="tag">Knock your friends off the platform.<br>Last one standing wins the round.</p>
+      <label class="field">
+        <span>Your name</span>
+        <input id="name" maxlength="12" autocomplete="off" spellcheck="false">
+      </label>
+      <div id="colors" class="colors" role="group" aria-label="Pick your color"></div>
+      <button id="btnHost" class="btn primary">Host a game</button>
+      <div class="join">
+        <input id="code" placeholder="ROOM CODE" maxlength="5" autocomplete="off" spellcheck="false">
+        <button id="btnJoin" class="btn">Join</button>
+      </div>
+      <button id="btnSolo" class="btn ghost">Practice vs bots (offline)</button>
+      <p id="menuMsg" class="msg" role="status"></p>
+      <p class="help">WASD / arrow keys to roll &middot; <kbd>Space</kbd> to dash &middot; <kbd>M</kbd> mute</p>
+    </div>
+  </div>
+
+  <div id="gone" class="overlay" hidden>
+    <div class="panel">
+      <h2>Disconnected</h2>
+      <p id="goneMsg"></p>
+      <button id="btnBack" class="btn primary">Back to menu</button>
+    </div>
+  </div>
+
+  <div id="hud" hidden>
+    <div class="box tl">
+      <div class="lbl">ROOM</div>
+      <div id="roomCode">-----</div>
+      <button id="btnCopy" class="btn small" hidden>Copy invite link</button>
+      <div id="hostTools" class="row">
+        <button id="btnAddBot" class="btn small">+ Bot</button>
+        <button id="btnRemBot" class="btn small">&minus; Bot</button>
+      </div>
+      <div class="row">
+        <button id="btnMute" class="btn small">Sound on</button>
+        <button id="btnLeave" class="btn small">Leave</button>
+      </div>
+      <div id="netStatus"></div>
+    </div>
+    <div id="banner"></div>
+    <div id="sub"></div>
+    <div id="scores" class="box tr"></div>
+    <div id="feed"></div>
+    <div id="dashMeter"><div id="dashFill"></div><span>DASH</span></div>
+    <div id="touch" hidden>
+      <div id="stick"><div id="knob"></div></div>
+      <button id="touchDash">DASH</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
