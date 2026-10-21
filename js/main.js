@@ -26,6 +26,7 @@ const S = {
   radius: CFG.arenaStart,
   winner: 0,
   dashReadyAt: 0,
+  rtt: 0,               // client: measured round-trip time to the host, seconds
   map: 0,
   arm: 0, armSpeed: 0, armT: 0, armRender: 0,
   powerups: [],         // [id, type, x, z]
@@ -202,6 +203,8 @@ function hostReceive(conn, d) {
     conns.set(conn, p.id);
     conn.send({ t: 'welcome', id: p.id });
     sim.events.push(['j', name]);
+  } else if (d.t === 'ping') {
+    conn.send({ t: 'pong', c: d.c });
   } else if (d.t === 'i') {
     const p = sim.players.get(conns.get(conn));
     if (!p) return;
@@ -250,6 +253,12 @@ function clientReceive(d) {
     case 'welcome': S.myId = d.id; break;
     case 'r': applyRoster(d); break;
     case 's': applySnapshot(d); handleEvents(d.ev || []); break;
+    case 'pong': {
+      const rtt = (performance.now() - d.c) / 1000;
+      S.rtt = S.rtt ? S.rtt * 0.7 + rtt * 0.3 : rtt;
+      setNet(`Connected to host · ping ${Math.round(S.rtt * 1000)} ms`);
+      break;
+    }
     case 'full': showGone('That room is full (8 players max).'); break;
     case 'version':
       gotVersionError = true;
@@ -299,11 +308,12 @@ function applySnapshot(s) {
 function smoothPlayers(dt) {
   const t = now();
   const k = 1 - Math.exp(-dt * 20);
-  S.armRender = S.arm + S.armSpeed * Math.min(0.1, t - S.armT);
+  S.armRender = S.arm + S.armSpeed * Math.min(0.25, t - S.armT + S.rtt / 2);
   for (const p of S.players.values()) {
     if (S.mode !== 'client') { p.rx = p.x; p.ry = p.y; p.rz = p.z; continue; }
-    // Extrapolate a little past the last snapshot, then ease toward it.
-    const age = Math.min(0.1, t - p.t);
+    // Extrapolate past the last snapshot by its age plus the one-way network delay, so
+    // what a client sees lines up with where the host actually has everyone. Then ease toward it.
+    const age = Math.min(0.25, t - p.t + S.rtt / 2);
     const tx = p.x + p.vx * age, tz = p.z + p.vz * age;
     if (Math.hypot(tx - p.rx, tz - p.rz) > 6 || Math.abs(p.y - p.ry) > 6) {
       p.rx = tx; p.ry = p.y; p.rz = tz;
@@ -576,7 +586,7 @@ $('touchDash').addEventListener('pointerdown', (e) => { e.preventDefault(); dash
 // link would otherwise freeze the game for everyone. Rendering stays on rAF.
 
 const STEP = 1 / 60;
-let lastTick = performance.now(), simAcc = 0, sendAcc = 0, inputAcc = 0;
+let lastTick = performance.now(), simAcc = 0, sendAcc = 0, inputAcc = 0, pingAcc = 1.5;
 
 function tick() {
   const t = performance.now();
@@ -616,6 +626,8 @@ function tick() {
       broadcast(snap);
     }
   } else if (link && link.open) {
+    pingAcc += dt;
+    if (pingAcc >= 2) { pingAcc = 0; link.send({ t: 'ping', c: performance.now() }); }
     inputAcc += dt;
     if (inputAcc >= 1 / 30 || dashPressed) {
       inputAcc = 0;

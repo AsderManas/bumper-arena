@@ -2,7 +2,7 @@
 
 // Bump on every release (together with the ?v= numbers in index.html) so the host can
 // turn away players whose browser cached a different version of the rules.
-export const GAME_VERSION = 5;
+export const GAME_VERSION = 6;
 
 export const CFG = {
   arenaStart: 22,
@@ -22,8 +22,10 @@ export const CFG = {
   maxPlayers: 8,
   maxPowerups: 4,
   pickupR: 0.9,
-  shockRadius: 9,
-  shockPush: 24,
+  holeGrace: 0.65,
+  shockRadius: 10,
+  shockPush: 34,
+  shockMinPush: 14,
   freezeRadius: 10,
   freezeTime: 2.5,
   turboCd: 0.6,
@@ -204,10 +206,12 @@ export class Sim {
     this.spawnAll();
   }
 
-  toWaiting() {
+  // mapChanged: everyone must be re-placed, or they may be standing where the new
+  // arena has no floor (e.g. in the Donut's hole).
+  toWaiting(mapChanged = false) {
     this.phase = PHASE.WAITING;
     this.winner = 0;
-    for (const p of this.players.values()) if (!p.alive) this.respawnSolo(p);
+    for (const p of this.players.values()) if (mapChanged || !p.alive) this.respawnSolo(p);
   }
 
   eliminate(p) {
@@ -254,9 +258,11 @@ export class Sim {
       case PHASE.ROUNDOVER:
         this.timer -= dt;
         if (this.timer <= 0) {
+          const prevMap = this.mapIdx;
           if (this.mapMode < 0) this.mapIdx = (this.mapIdx + 1) % MAPS.length;
+          else this.mapIdx = this.mapMode;
           if (n >= 2) this.startCountdown();
-          else this.toWaiting();
+          else this.toWaiting(this.mapIdx !== prevMap);
         }
         break;
     }
@@ -408,7 +414,7 @@ export class Sim {
         if (o === p || !o.alive || o.ghostT > 0) continue;
         const dx = o.x - p.x, dz = o.z - p.z, d = Math.hypot(dx, dz) || 0.01;
         if (d > CFG.shockRadius) continue;
-        const push = (CFG.shockPush * (1 - d / CFG.shockRadius) + 8) / (o.heavyT > 0 ? 1.5 : 1);
+        const push = (CFG.shockPush * (1 - d / CFG.shockRadius) + CFG.shockMinPush) / (o.heavyT > 0 ? 1.5 : 1);
         o.vx += (dx / d) * push; o.vz += (dz / d) * push;
         o.lastHit = p.id; o.lastHitT = this.elapsed;
       }
@@ -498,7 +504,8 @@ export class Sim {
           this.sweep(p);
         }
         const d = Math.hypot(p.x, p.z);
-        if (p.hoverT <= 0 && (d > this.radius + 0.2 || (hole && d < hole - 0.2))) p.falling = true;
+        // The hole is forgiving: you only drop once most of the ball hangs over it.
+        if (p.hoverT <= 0 && (d > this.radius + 0.2 || (hole && d < hole - CFG.holeGrace))) p.falling = true;
       }
       if (p.falling) { p.vy -= CFG.gravity * dt; p.y += p.vy * dt; }
       if (p.y < -30) this.eliminate(p);
