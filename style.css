@@ -125,6 +125,7 @@ input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(77, 216, 255
 
 .msg { min-height: 1.2em; color: #ffb84d; margin: 12px 0 0; font-size: 14px; }
 .help { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.help.ver { font-size: 11px; opacity: 0.6; }
 kbd { background: rgba(255, 255, 255, 0.12); border-radius: 4px; padding: 1px 6px; font-family: inherit; }
 
 /* HUD */

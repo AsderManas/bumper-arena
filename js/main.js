@@ -3,7 +3,7 @@
 // One player hosts: their browser runs the Sim and streams snapshots to everyone.
 // Everyone else is a client: they send their stick input and draw what the host says.
 
-import { Sim, CFG, PHASE, COLORS, MAPS, POWERS, F } from './sim.js';
+import { Sim, CFG, PHASE, COLORS, MAPS, POWERS, F, GAME_VERSION } from './sim.js';
 import { hostRoom, joinRoom, describeError } from './net.js';
 import { View } from './view.js';
 import { sfx, unlockAudio, toggleMute, isMuted } from './audio.js';
@@ -36,6 +36,7 @@ let sim = null;            // host/solo only
 let peer = null;
 const conns = new Map();   // host: connection -> player id
 let link = null;           // client: connection to the host
+let gotVersionError = false;
 let pendingEvents = [];
 
 // ---------- menu ----------
@@ -69,6 +70,8 @@ if (urlRoom) {
   $('btnJoin').classList.add('primary');
   $('btnHost').classList.remove('primary');
 }
+
+$('version').textContent = 'v' + GAME_VERSION;
 
 const myName = () => ($('name').value.trim() || 'Player').slice(0, 12);
 const menuMsg = (t) => { $('menuMsg').textContent = t; };
@@ -182,6 +185,12 @@ function hostReceive(conn, d) {
   if (!d || typeof d !== 'object') return;
   if (d.t === 'hello') {
     if (conns.has(conn)) return;
+    if (d.v !== GAME_VERSION) {
+      conn.send({ t: 'version', host: GAME_VERSION });
+      setTimeout(() => conn.close(), 500);
+      feed({ t: String(d.name || 'A player').slice(0, 12) }, ` couldn't join: different game version. Everyone press Ctrl+F5.`);
+      return;
+    }
     if (sim.players.size >= CFG.maxPlayers) {
       const bot = [...sim.players.values()].find((p) => p.bot);
       if (bot) sim.removePlayer(bot.id);
@@ -224,10 +233,10 @@ function startClient(raw) {
       enterGame('client');
       setRoom(code, true);
       setNet('Connected to host.');
-      conn.send({ t: 'hello', name: myName(), color: myColor });
+      conn.send({ t: 'hello', name: myName(), color: myColor, v: GAME_VERSION });
     },
     onData: clientReceive,
-    onClose() { showGone('The host left the game.'); },
+    onClose() { if (!gotVersionError) showGone('The host left the game.'); },
     onError(err) {
       setMenuBusy(false);
       menuMsg(describeError(err, code));
@@ -242,6 +251,11 @@ function clientReceive(d) {
     case 'r': applyRoster(d); break;
     case 's': applySnapshot(d); handleEvents(d.ev || []); break;
     case 'full': showGone('That room is full (8 players max).'); break;
+    case 'version':
+      gotVersionError = true;
+      showGone(`You and the host have different versions of the game (you: v${GAME_VERSION}, host: v${d.host}). `
+        + 'Both of you press Ctrl+F5 to reload the page, then the host makes a new room.');
+      break;
   }
 }
 

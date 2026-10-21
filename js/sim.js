@@ -1,5 +1,9 @@
 // Authoritative game simulation. Runs only on the host's browser.
 
+// Bump on every release (together with the ?v= numbers in index.html) so the host can
+// turn away players whose browser cached a different version of the rules.
+export const GAME_VERSION = 4;
+
 export const CFG = {
   arenaStart: 22,
   arenaMin: 8,
