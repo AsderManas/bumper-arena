@@ -123,10 +123,51 @@ function toggleAuto() {
 }
 $('btnAuto').onclick = toggleAuto;
 
-const mapSel = $('mapSel');
-mapSel.append(new Option('Map: rotate each round', '-1'));
-MAPS.forEach((m, i) => mapSel.append(new Option('Map: ' + m.name, String(i))));
-mapSel.onchange = () => { if (sim) sim.setMapMode(+mapSel.value); mapSel.blur(); };
+// Host's arena rotation: tick any combination (at least one). Remembered between visits.
+const allMaps = MAPS.map((_, i) => i);
+let mapPool = (() => {
+  try {
+    const saved = JSON.parse(store.get('ba-maps', 'null'));
+    const valid = Array.isArray(saved) ? saved.filter((i) => MAPS[i]) : [];
+    return valid.length ? valid : allMaps;
+  } catch { return allMaps; }
+})();
+const picks = $('mapPicks');
+MAPS.forEach((m, i) => {
+  const label = document.createElement('label');
+  label.className = 'pick';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = mapPool.includes(i);
+  cb.onchange = () => {
+    const next = cb.checked ? [...mapPool, i] : mapPool.filter((j) => j !== i);
+    if (!next.length) { cb.checked = true; return; } // keep at least one arena
+    mapPool = next.sort((a, b) => a - b);
+    store.set('ba-maps', JSON.stringify(mapPool));
+    if (sim) sim.setMapPool(mapPool);
+    updateMapsBtn();
+    cb.blur(); // so Space dashes instead of toggling the box
+  };
+  label.append(cb, m.name);
+  picks.append(label);
+});
+function updateMapsBtn() {
+  $('btnMaps').textContent = `Arenas: ${mapPool.length}/${MAPS.length} ${picks.hidden ? '▾' : '▴'}`;
+  $('btnMaps').setAttribute('aria-expanded', String(!picks.hidden));
+}
+$('btnMaps').onclick = () => { picks.hidden = !picks.hidden; updateMapsBtn(); };
+updateMapsBtn();
+
+// Tips: power-up explanations and arena descriptions. Per player.
+let tipsOn = store.get('ba-tips', '1') === '1';
+function updateTipsLabel() { $('btnTips').textContent = tipsOn ? 'Tips on' : 'Tips off'; }
+$('btnTips').onclick = () => {
+  tipsOn = !tipsOn;
+  store.set('ba-tips', tipsOn ? '1' : '0');
+  updateTipsLabel();
+  if (!tipsOn) $('tip').hidden = true;
+};
+updateTipsLabel();
 $('btnPowers').onclick = () => {
   if (!sim) return;
   sim.setPowerups(!sim.powerupsOn);
@@ -149,6 +190,7 @@ $('btnCopy').onclick = async () => {
 function startHost(offline) {
   enterGame(offline ? 'solo' : 'host');
   sim = new Sim();
+  sim.setMapPool(mapPool);
   S.myId = sim.addPlayer(myName(), myColor).id;
   if (offline) {
     for (let i = 0; i < 3; i++) sim.addBot();
@@ -347,6 +389,7 @@ const who = (id) => ({ t: id === S.myId ? 'You' : nameOf(id), c: S.roster.get(id
 const powerEnds = {}; // power id -> when my pickup of it runs out (for the countdown chips)
 let tipTimer = 0;
 function showTip(text, color) {
+  if (!tipsOn) return;
   const el = $('tip');
   el.textContent = text;
   el.style.borderColor = color;
@@ -444,7 +487,7 @@ function updateHud(dt) {
     case PHASE.COUNTDOWN: {
       const n = Math.max(1, Math.ceil(S.timer));
       banner = String(n);
-      sub = `${MAPS[S.map].name}: ${MAPS[S.map].desc}`;
+      sub = tipsOn ? `${MAPS[S.map].name}: ${MAPS[S.map].desc}` : MAPS[S.map].name;
       if (n !== lastCount) { lastCount = n; sfx.beep(); }
       break;
     }

@@ -2,7 +2,7 @@
 
 // Bump on every release (together with the ?v= numbers in index.html) so the host can
 // turn away players whose browser cached a different version of the rules.
-export const GAME_VERSION = 6;
+export const GAME_VERSION = 7;
 
 export const CFG = {
   arenaStart: 22,
@@ -94,7 +94,7 @@ export class Sim {
     this.events = [];
     this.rosterDirty = true;
     this.mapIdx = 0;
-    this.mapMode = -1;       // -1 = rotate every round, otherwise a fixed map index
+    this.mapPool = MAPS.map((_, i) => i); // arenas the host enabled; rotated in this order
     this.powerupsOn = true;
     this.powerups = [];
     this.nextPowerId = 1;
@@ -105,13 +105,19 @@ export class Sim {
 
   get map() { return MAPS[this.mapIdx]; }
 
-  setMapMode(mode) {
-    this.mapMode = mode;
-    if (mode >= 0 && this.phase === PHASE.WAITING) {
-      this.mapIdx = mode;
+  setMapPool(pool) {
+    const clean = [...new Set(pool)].filter((i) => MAPS[i]).sort((a, b) => a - b);
+    if (!clean.length) return;
+    this.mapPool = clean;
+    if (this.phase === PHASE.WAITING && !clean.includes(this.mapIdx)) {
+      this.mapIdx = clean[0];
       this.powerups = [];
       for (const p of this.players.values()) this.respawnSolo(p);
     }
+  }
+
+  nextMap() {
+    return this.mapPool.find((i) => i > this.mapIdx) ?? this.mapPool[0];
   }
 
   setPowerups(on) {
@@ -195,7 +201,7 @@ export class Sim {
   }
 
   startCountdown() {
-    if (this.mapMode >= 0) this.mapIdx = this.mapMode;
+    if (!this.mapPool.includes(this.mapIdx)) this.mapIdx = this.mapPool[0];
     this.phase = PHASE.COUNTDOWN;
     this.timer = 3;
     this.radius = CFG.arenaStart;
@@ -259,8 +265,7 @@ export class Sim {
         this.timer -= dt;
         if (this.timer <= 0) {
           const prevMap = this.mapIdx;
-          if (this.mapMode < 0) this.mapIdx = (this.mapIdx + 1) % MAPS.length;
-          else this.mapIdx = this.mapMode;
+          this.mapIdx = this.nextMap();
           if (n >= 2) this.startCountdown();
           else this.toWaiting(this.mapIdx !== prevMap);
         }

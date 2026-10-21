@@ -8,17 +8,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Russo+One&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
   <!-- On every release, bump all the ?v= numbers here together with GAME_VERSION in js/sim.js,
        so browsers can't mix freshly downloaded files with cached ones from an older version. -->
   <script type="importmap">
     {
       "imports": {
         "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "./js/sim.js": "./js/sim.js?v=6",
-        "./js/net.js": "./js/net.js?v=6",
-        "./js/view.js": "./js/view.js?v=6",
-        "./js/audio.js": "./js/audio.js?v=6"
+        "./js/sim.js": "./js/sim.js?v=7",
+        "./js/net.js": "./js/net.js?v=7",
+        "./js/view.js": "./js/view.js?v=7",
+        "./js/audio.js": "./js/audio.js?v=7"
       }
     }
   </script>
@@ -66,14 +66,16 @@
           <button id="btnAddBot" class="btn small">+ Bot</button>
           <button id="btnRemBot" class="btn small">&minus; Bot</button>
         </div>
-        <select id="mapSel" class="sel" aria-label="Arena"></select>
+        <button id="btnMaps" class="btn small full" aria-expanded="false" aria-controls="mapPicks">Arenas</button>
+        <div id="mapPicks" class="map-picks" hidden></div>
         <button id="btnPowers" class="btn small full">Power-ups: on</button>
       </div>
       <button id="btnAuto" class="btn small full">Autopilot: off</button>
       <div class="row">
         <button id="btnMute" class="btn small">Sound on</button>
-        <button id="btnLeave" class="btn small">Leave</button>
+        <button id="btnTips" class="btn small">Tips on</button>
       </div>
+      <button id="btnLeave" class="btn small full">Leave</button>
       <div id="netStatus"></div>
     </div>
     <div id="banner"></div>
@@ -91,6 +93,6 @@
 
   <div id="version"></div>
 
-  <script type="module" src="js/main.js?v=6"></script>
+  <script type="module" src="js/main.js?v=7"></script>
 </body>
 </html>

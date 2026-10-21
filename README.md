@@ -18,7 +18,7 @@ A 3D multiplayer browser game. Roll your glowing bumper ball around a floating a
 
 ## Arenas
 
-By default the arena changes every round. The host can lock one in from the map menu.
+The arena changes every round. The host picks which arenas are in the rotation with the **Arenas** checklist (any combination, remembered for next time). Tick just one to play only that arena.
 
 | Arena | What's different |
 |---|---|
@@ -65,7 +65,7 @@ The player with the most round wins wears a crown.
 1. One person opens the game and clicks **Host a game**. They get a 5-letter room code.
 2. They click **Copy invite link** and send it to friends. Friends can also type the code and click **Join**.
 3. A round starts automatically once 2 or more players are in. Use **+ Bot** to fill out the arena.
-4. The host's panel also has the arena picker and the power-ups switch.
+4. The host's panel also has the arena checklist and the power-ups switch. Anyone can turn **Tips** off to hide power-up and arena explanations.
 
 ## How multiplayer works without a server
 
