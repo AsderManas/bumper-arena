@@ -71,7 +71,7 @@ if (urlRoom) {
   $('btnHost').classList.remove('primary');
 }
 
-$('version').textContent = 'v' + GAME_VERSION;
+$('version').textContent = 'Bumper Arena v' + GAME_VERSION;
 
 const myName = () => ($('name').value.trim() || 'Player').slice(0, 12);
 const menuMsg = (t) => { $('menuMsg').textContent = t; };
@@ -334,6 +334,17 @@ function feed(...parts) {
 
 const who = (id) => ({ t: id === S.myId ? 'You' : nameOf(id), c: S.roster.get(id)?.color });
 
+const powerEnds = {}; // power id -> when my pickup of it runs out (for the countdown chips)
+let tipTimer = 0;
+function showTip(text, color) {
+  const el = $('tip');
+  el.textContent = text;
+  el.style.borderColor = color;
+  el.hidden = false;
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => { el.hidden = true; }, 3500);
+}
+
 let flashText = '', flashUntil = 0;
 const flash = (text, dur = 0.9) => { flashText = text; flashUntil = now() + dur; };
 
@@ -369,7 +380,11 @@ function handleEvents(evs) {
         const pw = POWERS[e[2]];
         view.pickupFx(e[1], e[2]);
         feed(who(e[1]), ' grabbed ', { t: pw.name, c: pw.color });
-        if (e[1] === S.myId) sfx.pickup();
+        if (e[1] === S.myId) {
+          sfx.pickup();
+          powerEnds[pw.id] = now() + pw.dur;
+          showTip(pw.name + ': ' + pw.tip, pw.color);
+        }
         break;
       }
       case 'x': {
@@ -448,7 +463,9 @@ function updateHud(dt) {
     const active = [[F.SPEED, 'speed'], [F.MEGA, 'mega'], [F.HEAVY, 'heavy'], [F.GHOST, 'ghost'], [F.HOVER, 'hover'], [F.TURBO, 'turbo']];
     for (const [bit, id] of active) {
       const pw = POWERS.find((q) => q.id === id);
-      if (me.f & bit) chips.push([pw.name.toUpperCase(), pw.color]);
+      if (!(me.f & bit)) continue;
+      const left = Math.max(0, (powerEnds[id] ?? 0) - t);
+      chips.push([pw.name.toUpperCase() + (left > 0 ? ` ${Math.ceil(left)}s` : ''), pw.color]);
     }
     if (me.f & F.FROZEN) chips.push(['FROZEN!', '#00e5ff']);
   }

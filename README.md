@@ -39,8 +39,8 @@ One appears every 4 to 7 seconds, with up to 4 on the floor. Roll over one to gr
 | 🛡 **Heavy** (blue) | 2× mass for 5 s. Harder to push, but a bit slower |
 | 💥 **Shockwave** (purple) | Instantly blasts everyone nearby away from you |
 | 👻 **Ghost** (white) | Pass through other players, the sweeper arm and blasts for 5 s |
-| 🚀 **Hover** (green) | Float for 5 s. You can't fall, even off the edge, but get back before it runs out |
-| 🔥 **Turbo Dash** (orange) | Dash cooldown drops from 1.5 s to 0.35 s for 6 s |
+| 🚀 **Hover** (green) | Float for 5 s and can't fall, even past the edge or over the donut hole. If you're still off the floor when it ends, you drop |
+| 🔥 **Turbo Dash** (orange) | Dash cooldown drops from 1.5 s to 0.6 s for 3.5 s |
 | ❄ **Freeze** (cyan) | Freezes everyone nearby for 2.5 s: no steering, no dashing |
 
 The player with the most round wins wears a crown.

@@ -2,7 +2,7 @@
 
 // Bump on every release (together with the ?v= numbers in index.html) so the host can
 // turn away players whose browser cached a different version of the rules.
-export const GAME_VERSION = 4;
+export const GAME_VERSION = 5;
 
 export const CFG = {
   arenaStart: 22,
@@ -26,7 +26,7 @@ export const CFG = {
   shockPush: 24,
   freezeRadius: 10,
   freezeTime: 2.5,
-  turboCd: 0.35,
+  turboCd: 0.6,
   megaScale: 1.55,
   bumperR: 1.5,
   bumperKick: 17,
@@ -45,14 +45,14 @@ export const MAPS = [
 ];
 
 export const POWERS = [
-  { id: 'speed', name: 'Speed', color: '#ffd23f', dur: 6 },
-  { id: 'mega', name: 'Mega', color: '#ff4d6d', dur: 7 },
-  { id: 'heavy', name: 'Heavy', color: '#4dabff', dur: 5 },
-  { id: 'shock', name: 'Shockwave', color: '#b388ff', dur: 0 },
-  { id: 'ghost', name: 'Ghost', color: '#e8e4ff', dur: 5 },
-  { id: 'hover', name: 'Hover', color: '#3ddc97', dur: 5 },
-  { id: 'turbo', name: 'Turbo Dash', color: '#ff8c42', dur: 6 },
-  { id: 'freeze', name: 'Freeze', color: '#00e5ff', dur: 0 },
+  { id: 'speed', name: 'Speed', color: '#ffd23f', dur: 6, tip: 'You roll a lot faster.' },
+  { id: 'mega', name: 'Mega', color: '#ff4d6d', dur: 7, tip: "You're huge and heavy. Go flatten someone!" },
+  { id: 'heavy', name: 'Heavy', color: '#4dabff', dur: 5, tip: 'Armor on: you get pushed less, but roll slower.' },
+  { id: 'shock', name: 'Shockwave', color: '#b388ff', dur: 0, tip: 'BOOM! Everyone near you got blasted away.' },
+  { id: 'ghost', name: 'Ghost', color: '#e8e4ff', dur: 5, tip: 'Nothing can touch you, and you can touch nothing.' },
+  { id: 'hover', name: 'Hover', color: '#3ddc97', dur: 5, tip: "You can't fall! Get back on the floor before it runs out." },
+  { id: 'turbo', name: 'Turbo Dash', color: '#ff8c42', dur: 3.5, tip: 'Dash cooldown is way shorter. Spam Space!' },
+  { id: 'freeze', name: 'Freeze', color: '#00e5ff', dur: 0, tip: 'Everyone near you is frozen. Push them off!' },
 ];
 
 // Snapshot flag bits for a player.

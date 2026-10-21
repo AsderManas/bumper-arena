@@ -125,7 +125,18 @@ input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(77, 216, 255
 
 .msg { min-height: 1.2em; color: #ffb84d; margin: 12px 0 0; font-size: 14px; }
 .help { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
-.help.ver { font-size: 11px; opacity: 0.6; }
+/* Always visible (menu and in game) so players can compare versions at a glance. */
+#version {
+  position: fixed;
+  left: 10px; bottom: 8px;
+  z-index: 20;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--muted);
+  opacity: 0.75;
+  pointer-events: none;
+}
 kbd { background: rgba(255, 255, 255, 0.12); border-radius: 4px; padding: 1px 6px; font-family: inherit; }
 
 /* HUD */
@@ -163,6 +174,19 @@ kbd { background: rgba(255, 255, 255, 0.12); border-radius: 4px; padding: 1px 6p
 .sel option { background: #1a1236; }
 .tag small { color: var(--cyan); font-weight: 600; }
 
+#tip {
+  position: absolute;
+  bottom: 66px; left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid;
+  border-radius: 10px;
+}
 #chips {
   position: absolute;
   bottom: 38px; left: 50%;
@@ -270,4 +294,5 @@ kbd { background: rgba(255, 255, 255, 0.12); border-radius: 4px; padding: 1px 6p
   #feed { bottom: 190px; font-size: 12px; }
   #dashMeter { bottom: 8px; }
   #chips { bottom: 30px; }
+  #tip { bottom: 180px; font-size: 12px; }
 }
