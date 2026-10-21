@@ -2,7 +2,7 @@
 
 // Bump on every release (together with the ?v= numbers in index.html) so the host can
 // turn away players whose browser cached a different version of the rules.
-export const GAME_VERSION = 7;
+export const GAME_VERSION = 8;
 
 export const CFG = {
   arenaStart: 22,
@@ -181,19 +181,44 @@ export class Sim {
     return h ? [(h + 0.12) * this.radius, (h + 0.32) * this.radius] : [0, 0.4 * this.radius];
   }
 
+  // Is (x, z) clear of every fixed hazard on this arena, with some room to spare?
+  isSafeSpot(x, z) {
+    const map = this.map, d = Math.hypot(x, z), pad = CFG.r + 1;
+    if (d > this.radius - pad) return false;
+    if (map.hole && d < map.hole * this.radius + pad) return false;
+    if (bumperSpots(map, this.radius).some(([bx, bz]) => Math.hypot(x - bx, z - bz) < CFG.bumperR + pad)) return false;
+    if (map.sweeper) {
+      if (d < CFG.hubR + pad) return false;
+      const a = this.armAngle;
+      const along = x * Math.cos(a) + z * Math.sin(a), perp = -x * Math.sin(a) + z * Math.cos(a);
+      if (along > -pad && Math.abs(perp) < CFG.armWidth / 2 + pad) return false;
+    }
+    return true;
+  }
+
   respawnSolo(p) {
     const [lo, hi] = this.spawnBand();
-    const a = Math.random() * Math.PI * 2;
-    const d = lo + Math.random() * (hi - lo);
+    let x = 0, z = 0;
+    for (let tries = 0; tries < 30; tries++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = lo + Math.random() * (hi - lo);
+      x = Math.cos(a) * d; z = Math.sin(a) * d;
+      if (this.isSafeSpot(x, z)) break;
+    }
     this.resetBody(p);
-    p.x = Math.cos(a) * d; p.z = Math.sin(a) * d;
+    p.x = x; p.z = z;
   }
 
   spawnAll() {
     const list = [...this.players.values()];
+    const d = this.radius * 0.6;
     list.forEach((p, i) => {
-      const a = (i / list.length) * Math.PI * 2 + 0.3;
-      const d = this.radius * 0.6;
+      // Evenly spaced around a ring; if that spot hits a bumper/arm, slide along the ring until clear.
+      const base = (i / list.length) * Math.PI * 2 + 0.3;
+      let a = base;
+      for (let k = 1; k <= 30 && !this.isSafeSpot(Math.cos(a) * d, Math.sin(a) * d); k++) {
+        a = base + Math.ceil(k / 2) * 0.08 * (k % 2 ? 1 : -1);
+      }
       this.resetBody(p);
       p.x = Math.cos(a) * d; p.z = Math.sin(a) * d;
       p.faceX = -Math.cos(a); p.faceZ = -Math.sin(a);
