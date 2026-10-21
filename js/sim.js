@@ -2,7 +2,7 @@
 
 // Bump on every release (together with the ?v= numbers in index.html) so the host can
 // turn away players whose browser cached a different version of the rules.
-export const GAME_VERSION = 8;
+export const GAME_VERSION = 9;
 
 export const CFG = {
   arenaStart: 22,
@@ -76,6 +76,13 @@ export function bumperSpots(map, radius) {
     spots.push([Math.cos(a) * radius * 0.5, Math.sin(a) * radius * 0.5]);
   }
   return spots;
+}
+
+// Distance from point (px, pz) to the segment (ax, az)-(bx, bz).
+function segDist(px, pz, ax, az, bx, bz) {
+  const vx = bx - ax, vz = bz - az, len2 = vx * vx + vz * vz || 1e-6;
+  const t = Math.max(0, Math.min(1, ((px - ax) * vx + (pz - az) * vz) / len2));
+  return Math.hypot(px - (ax + vx * t), pz - (az + vz * t));
 }
 
 const radiusOf = (p) => CFG.r * (p.megaT > 0 ? CFG.megaScale : 1);
@@ -304,6 +311,19 @@ export class Sim {
       t: 0, x: 0, z: 0, wob: Math.random() * 10,
       skill: p.auto ? 0.9 : 0.55 + Math.random() * 0.35,
     });
+    // Sweeper: checked every frame, not just on think ticks, because the arm moves fast.
+    // When it's about to hit us, dash back through it (dashing phases through the arm).
+    if (this.map.sweeper && this.armSpeed > 0 && p.dashCd <= 0) {
+      const a = this.armAngle, ax = Math.cos(a), az = Math.sin(a), nx = -az, nz = ax;
+      const along = p.x * ax + p.z * az, perp = p.x * nx + p.z * nz; // arm sweeps toward +perp
+      const warn = 1.6 + this.armSpeed * Math.max(0, along) * 0.18;  // react earlier where the arm is faster
+      if (along > CFG.hubR && along < this.radius + 1 && perp > 0 && perp < warn && Math.random() < b.skill + 0.05) {
+        p.input.x = -nx; p.input.z = -nz; p.input.dash = true;
+        b.t = 0.35;
+        return;
+      }
+    }
+
     b.t -= dt;
     if (b.t > 0) return;
     b.t = 0.12 + Math.random() * 0.15 * (1.2 - b.skill);
@@ -341,6 +361,19 @@ export class Sim {
         dx += (fx / fd) * w; dz += (fz / fd) * w;
       }
     }
+    // Pinball: curve around bumpers instead of ping-ponging off them. Push away from the
+    // bumper and also sideways (toward whichever side the goal is on) so we don't stall behind it.
+    const bumpers = bumperSpots(this.map, this.radius);
+    for (const [bx, bz] of bumpers) {
+      const ox = fx - bx, oz = fz - bz, od = Math.hypot(ox, oz) || 0.01;
+      const reach = CFG.bumperR + CFG.r + 3;
+      if (od >= reach) continue;
+      const w = ((reach - od) / reach) * 3.5 * b.skill;
+      let tx = -oz / od, tz = ox / od;
+      if (tx * gx + tz * gz < 0) { tx = -tx; tz = -tz; }
+      dx += (ox / od) * w + tx * w * 0.8;
+      dz += (oz / od) * w + tz * w * 0.8;
+    }
     b.wob += 0.7;
     dx += Math.sin(b.wob) * 0.25 * (1.1 - b.skill);
     dz += Math.cos(b.wob * 1.3) * 0.25 * (1.1 - b.skill);
@@ -350,7 +383,9 @@ export class Sim {
 
     if (chasing && bd < 5.5 && danger < 0.75 && p.dashCd <= 0 && Math.random() < b.skill * 0.6) {
       const tx = (best.x - p.x) / bd, tz = (best.z - p.z) / bd;
-      if (tx * b.x + tz * b.z > 0.7) p.input.dash = true;
+      // Don't dash if a bumper sits between us and the target.
+      const blocked = bumpers.some(([bx, bz]) => segDist(bx, bz, p.x, p.z, best.x, best.z) < CFG.bumperR + CFG.r);
+      if (tx * b.x + tz * b.z > 0.7 && !blocked) p.input.dash = true;
     }
   }
 
